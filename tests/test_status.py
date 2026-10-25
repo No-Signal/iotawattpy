@@ -6,6 +6,7 @@ Firmware/IotaWatt/webServer.cpp (https://github.com/boblemaire/IoTaWatt).
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 import httpx
@@ -13,7 +14,16 @@ import pytest
 import respx
 
 from iotawattpy_nosignal.iotawatt import Iotawatt
-from iotawattpy_nosignal.status import LiveReading, parseLiveStatus
+from iotawattpy_nosignal.status import (
+    DatalogStatus,
+    DeviceSettings,
+    DeviceStats,
+    DeviceStatus,
+    LiveReading,
+    UploaderStatus,
+    WifiStatus,
+    parseLiveStatus,
+)
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
@@ -50,6 +60,82 @@ STATUS_LIVE_OLD: dict[str, Any] = {
     ],
     "outputs": [{"name": "Total", "units": "Watts", "value": 87}],
 }
+
+# Current firmware, all sections requested by getDeviceStatus().
+STATUS_DEVICE: dict[str, Any] = {
+    "device": {
+        "name": "IotaWatt",
+        "timediff": -300,
+        "allowdst": True,
+        "update": "MAJOR",
+    },
+    "stats": {
+        "cyclerate": 412.5,
+        "chanrate": 38.9,
+        "starttime": 1761300000,
+        "currenttime": 1761400000,
+        "runseconds": 100000,
+        "stack": 18640,
+        "version": "02_08_04",
+        "frequency": 59.98,
+        "lowbat": False,
+    },
+    "wifi": {
+        "connecttime": 1761300042,
+        "SSID": "home",
+        "IP": "192.0.2.1",
+        "channel": 6,
+        "RSSI": -61,
+        "mac": "A0:20:A6:00:00:01",
+    },
+    "datalogs": [
+        {
+            "id": "Current",
+            "firstkey": 1700000000,
+            "lastkey": 1761399995,
+            "size": 61440000,
+            "interval": 5,
+        },
+        {
+            "id": "History",
+            "firstkey": 1600000000,
+            "lastkey": 1761399960,
+            "size": 3840000,
+            "interval": 60,
+        },
+        {"id": "Solar", "firstkey": 0, "lastkey": 0, "size": 0, "interval": 5},
+    ],
+    "uploaders": [
+        {"id": "influxDB", "status": "running", "lastpost": 1761399990},
+        {
+            "id": "PVoutput",
+            "status": "stopped",
+            "lastpost": 0,
+            "message": "Invalid API key",
+        },
+    ],
+}
+
+# Older firmware: no device section, no uploaders or lowbat, WiFi
+# disconnected (only connecttime is sent).
+STATUS_DEVICE_OLD: dict[str, Any] = {
+    "stats": {
+        "cyclerate": 400,
+        "chanrate": 30,
+        "starttime": 1600000000,
+        "currenttime": 1600001000,
+        "runseconds": 1000,
+        "stack": 20000,
+        "version": "02_03_20",
+        "frequency": 50,
+    },
+    "wifi": {"connecttime": 0},
+    "datalogs": [{"id": "Current", "firstkey": 1500000000, "lastkey": 1600000995}],
+}
+
+
+def _utc(timestamp: int) -> datetime:
+    return datetime.fromtimestamp(timestamp, tz=UTC)
 
 
 @pytest.fixture
@@ -155,3 +241,151 @@ async def test_get_live_status_http_error(websession: httpx.AsyncClient) -> None
 
     with pytest.raises(httpx.HTTPStatusError):
         await iotawatt.getLiveStatus()
+
+
+def test_parse_device_status() -> None:
+    """Every section and field of a current firmware response is parsed."""
+    status = DeviceStatus.fromJson(STATUS_DEVICE)
+
+    assert status.device == DeviceSettings(
+        name="IotaWatt", timediff=-300, allowdst=True, update="MAJOR"
+    )
+    assert status.stats == DeviceStats(
+        cyclerate=412.5,
+        chanrate=38.9,
+        starttime=_utc(1761300000),
+        currenttime=_utc(1761400000),
+        runseconds=100000,
+        stack=18640,
+        version="02_08_04",
+        frequency=59.98,
+        lowbat=False,
+    )
+    assert status.wifi == WifiStatus(
+        connecttime=_utc(1761300042),
+        ssid="home",
+        ip="192.0.2.1",
+        channel=6,
+        rssi=-61,
+        mac="A0:20:A6:00:00:01",
+    )
+    assert status.datalogs == (
+        DatalogStatus(
+            id="Current",
+            firstkey=_utc(1700000000),
+            lastkey=_utc(1761399995),
+            size=61440000,
+            interval=5,
+        ),
+        DatalogStatus(
+            id="History",
+            firstkey=_utc(1600000000),
+            lastkey=_utc(1761399960),
+            size=3840000,
+            interval=60,
+        ),
+        DatalogStatus(id="Solar", firstkey=None, lastkey=None, size=0, interval=5),
+    )
+    assert status.uploaders == (
+        UploaderStatus(
+            id="influxDB", status="running", lastpost=_utc(1761399990), message=None
+        ),
+        UploaderStatus(
+            id="PVoutput", status="stopped", lastpost=None, message="Invalid API key"
+        ),
+    )
+
+
+def test_device_status_times_are_aware_utc() -> None:
+    status = DeviceStatus.fromJson(STATUS_DEVICE)
+
+    assert status.stats is not None
+    assert status.stats.starttime is not None
+    assert status.stats.starttime.tzinfo is UTC
+    assert status.stats.starttime == datetime(2025, 10, 24, 10, 0, tzinfo=UTC)
+
+
+def test_device_status_version_not_reformatted() -> None:
+    status = DeviceStatus.fromJson(STATUS_DEVICE)
+
+    assert status.stats is not None
+    assert status.stats.version == "02_08_04"
+
+
+def test_parse_device_status_old_firmware() -> None:
+    """Missing sections and fields become None instead of raising."""
+    status = DeviceStatus.fromJson(STATUS_DEVICE_OLD)
+
+    assert status.device is None
+    assert status.uploaders is None
+    assert status.stats is not None
+    assert status.stats.lowbat is None
+    assert status.stats.cyclerate == 400.0
+    assert status.wifi == WifiStatus(
+        connecttime=None, ssid=None, ip=None, channel=None, rssi=None, mac=None
+    )
+    assert status.datalogs == (
+        DatalogStatus(
+            id="Current",
+            firstkey=_utc(1500000000),
+            lastkey=_utc(1600000995),
+            size=None,
+            interval=None,
+        ),
+    )
+
+
+def test_parse_device_status_empty() -> None:
+    assert DeviceStatus.fromJson({}) == DeviceStatus(
+        device=None, stats=None, wifi=None, datalogs=None, uploaders=None
+    )
+
+
+def test_parse_device_status_skips_entries_without_id() -> None:
+    status = DeviceStatus.fromJson(
+        {"datalogs": [{"firstkey": 1}, "junk"], "uploaders": [{"status": "running"}]}
+    )
+
+    assert status.datalogs == ()
+    assert status.uploaders == ()
+
+
+def test_get_datalog() -> None:
+    status = DeviceStatus.fromJson(STATUS_DEVICE)
+
+    current = status.getDatalog("Current")
+    assert current is not None
+    assert current.lastkey == _utc(1761399995)
+    assert status.getDatalog("Missing") is None
+    assert DeviceStatus.fromJson({}).getDatalog("Current") is None
+
+
+@respx.mock
+async def test_get_device_status(websession: httpx.AsyncClient) -> None:
+    """One request for all sections, without connect() or update()."""
+    route = respx.get(
+        f"http://{HOST}/status",
+        params={
+            "device": "yes",
+            "stats": "yes",
+            "wifi": "yes",
+            "datalogs": "yes",
+            "uploaders": "yes",
+        },
+    ).respond(json=STATUS_DEVICE)
+    iotawatt = Iotawatt("test", HOST, websession)
+
+    status = await iotawatt.getDeviceStatus()
+
+    assert route.call_count == 1
+    assert len(respx.calls) == 1
+    assert status == DeviceStatus.fromJson(STATUS_DEVICE)
+
+
+@respx.mock
+async def test_get_device_status_http_error(websession: httpx.AsyncClient) -> None:
+    respx.get(f"http://{HOST}/status").respond(status_code=401)
+    iotawatt = Iotawatt("test", HOST, websession)
+
+    with pytest.raises(httpx.HTTPStatusError):
+        await iotawatt.getDeviceStatus()

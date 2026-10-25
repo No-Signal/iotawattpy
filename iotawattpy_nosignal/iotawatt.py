@@ -14,7 +14,7 @@ import httpx
 
 from .connection import Connection
 from .sensor import Sensor
-from .status import LiveReading, parseLiveStatus
+from .status import DeviceStatus, LiveReading, parseLiveStatus
 
 LOGGER = logging.getLogger(__name__)
 
@@ -139,6 +139,25 @@ class Iotawatt:
         """
         response = await self._getInputsandOutputs()
         return parseLiveStatus(response.json())
+
+    async def getDeviceStatus(self) -> DeviceStatus:
+        """Fetch device health information.
+
+        Makes a single
+        ``/status?device=yes&stats=yes&wifi=yes&datalogs=yes&uploaders=yes``
+        request. UNIX times are returned as aware UTC datetimes (0 as
+        ``None``); fields missing on older firmware are ``None``.
+
+        Raises ``httpx.HTTPError`` if the device cannot be reached or rejects
+        the request.
+        """
+        url = (
+            f"http://{self._ip}/status"
+            "?device=yes&stats=yes&wifi=yes&datalogs=yes&uploaders=yes"
+        )
+        response = await self._connection.get(url)
+        response.raise_for_status()
+        return DeviceStatus.fromJson(response.json())
 
     def getLastUpdateTime(self) -> datetime | None:
         """Return the timestamp of the last successful update."""
