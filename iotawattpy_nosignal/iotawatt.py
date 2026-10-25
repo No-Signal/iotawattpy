@@ -63,9 +63,7 @@ class Iotawatt:
         """
         self._device_name = device_name
         self._ip = ip
-        self._connection = Connection(websession, self._ip)
-        self._username = username
-        self._password = password
+        self._connection = Connection(websession, self._ip, username, password)
         self._integratedInterval = integratedInterval
         self._includeNonTotalSensors = includeNonTotalSensors
         self._includeLifetimeSensors = includeLifetimeSensors
@@ -82,7 +80,7 @@ class Iotawatt:
     async def connect(self) -> bool:
         """Test the connection and capture the device MAC address."""
         url = f"http://{self._ip}/status?wifi=yes"
-        results = await self._connection.get(url, self._username, self._password)
+        results = await self._connection.get(url)
         if results.status_code == httpx.codes.OK:
             jsonResults = results.json()
             self._macAddress = jsonResults["wifi"]["mac"].replace(":", "")
@@ -133,7 +131,7 @@ class Iotawatt:
     async def _getInputsandOutputs(self) -> httpx.Response:
         """Fetch the inputs and outputs status from the device."""
         url = f"http://{self._ip}/status?inputs=yes&outputs=yes"
-        response = await self._connection.get(url, self._username, self._password)
+        response = await self._connection.get(url)
         response.raise_for_status()
         return response
 
@@ -418,7 +416,7 @@ class Iotawatt:
         the caller can retry with an accurate datalog start.
         """
         url = f"http://{self._ip}/status?datalogs=yes"
-        response = await self._connection.get(url, self._username, self._password)
+        response = await self._connection.get(url)
         response.raise_for_status()
         logs = {log.get("id"): log for log in response.json().get("datalogs", [])}
         for log_id in ("History", "Current"):
@@ -430,7 +428,7 @@ class Iotawatt:
         """Fetch the available series from the device."""
         url = f"http://{self._ip}/query?show=series"
         LOGGER.debug("URL: %s", url)
-        response = await self._connection.get(url, self._username, self._password)
+        response = await self._connection.get(url)
         response.raise_for_status()
         return response
 
@@ -448,7 +446,7 @@ class Iotawatt:
             f"?select=[{strSeries}]&begin=s-{timespan}s&end=s&group={timespan}s"
         )
         LOGGER.debug("Querying with URL %s", url)
-        response = await self._connection.get(url, self._username, self._password)
+        response = await self._connection.get(url)
         response.raise_for_status()
         return response
 
@@ -486,6 +484,6 @@ class Iotawatt:
             f"?select=[time.iso,{strSeries}]&begin={start}&end={end}&group={group}"
         )
         LOGGER.debug("Querying with URL %s", url)
-        response = await self._connection.get(url, self._username, self._password)
+        response = await self._connection.get(url)
         response.raise_for_status()
         return response
