@@ -326,3 +326,25 @@ async def test_get_mac_address(websession: httpx.AsyncClient) -> None:
     assert await iotawatt.connect()
 
     assert iotawatt.getMacAddress() == "deadbeef0001"
+
+
+@respx.mock
+async def test_live_status_keys_match_sensors(websession: httpx.AsyncClient) -> None:
+    """Live readings can be joined to sensors by key."""
+    _mock_device(
+        INTEGRATED_RESULT,
+        inputs_outputs=STATUS_INPUTS_OUTPUTS_REACTIVE,
+        show_series=SHOW_SERIES_REACTIVE,
+        current_result=CURRENT_RESULT_REACTIVE,
+    )
+    iotawatt = Iotawatt(
+        "test", HOST, websession, integratedInterval="d", includeNonTotalSensors=False
+    )
+
+    await iotawatt.update()
+    readings = await iotawatt.getLiveStatus()
+
+    assert set(readings) == {"input_0", "output_reactive"}
+    assert set(readings) <= set(iotawatt.getSensors()["sensors"])
+    assert readings["input_0"].watts == 123.0
+    assert readings["output_reactive"].unit == "VARh"

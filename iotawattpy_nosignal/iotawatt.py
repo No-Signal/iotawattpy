@@ -14,6 +14,7 @@ import httpx
 
 from .connection import Connection
 from .sensor import Sensor
+from .status import LiveReading, parseLiveStatus
 
 LOGGER = logging.getLogger(__name__)
 
@@ -123,6 +124,21 @@ class Iotawatt:
                 )
             self._getMACFlag = True
         await self._refreshSensors(timespan, lastUpdate)
+
+    async def getLiveStatus(self) -> dict[str, LiveReading]:
+        """Fetch live readings of all active inputs and outputs.
+
+        Makes a single ``/status?inputs=yes&outputs=yes`` request. The values
+        are the firmware's ~1 second averages, the same data the device's
+        Status page shows, so they react to load changes within about a
+        second. Keys match ``getSensors()`` keys (``input_{channel}``,
+        ``output_{name}``). Does not require ``update()`` to have run.
+
+        Raises ``httpx.HTTPError`` if the device cannot be reached or rejects
+        the request.
+        """
+        response = await self._getInputsandOutputs()
+        return parseLiveStatus(response.json())
 
     def getLastUpdateTime(self) -> datetime | None:
         """Return the timestamp of the last successful update."""

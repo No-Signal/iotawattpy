@@ -7,5 +7,6 @@ Modified as part of the iotawattpy-nosignal fork
 from .connection import Connection
 from .iotawatt import Iotawatt
 from .sensor import Sensor
+from .status import LiveReading
 
-__all__ = ["Connection", "Iotawatt", "Sensor"]
+__all__ = ["Connection", "Iotawatt", "LiveReading", "Sensor"]
