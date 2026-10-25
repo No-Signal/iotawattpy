@@ -97,6 +97,14 @@ class Iotawatt:
         """Return the dict of known sensors."""
         return self._sensors
 
+    def getMacAddress(self) -> str:
+        """Return the device MAC address captured by ``connect()``.
+
+        The address has its colons removed (e.g. ``deadbeef0001``). It is an
+        empty string until ``connect()`` has succeeded.
+        """
+        return self._macAddress
+
     async def update(
         self, timespan: int = 30, lastUpdate: datetime | None = None
     ) -> None:

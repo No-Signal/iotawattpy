@@ -314,3 +314,15 @@ async def test_update_reactive_sensor_integrated(
     assert len(integrated_queries) == 1
     assert integrated_queries[0]["begin"] == "1600000000"
     assert integrated_queries[0]["select"] == "[time.iso,Main.wh.d3,reactive.varh.d3]"
+
+
+@respx.mock
+async def test_get_mac_address(websession: httpx.AsyncClient) -> None:
+    """The MAC address captured by connect() is exposed without colons."""
+    _mock_device(INTEGRATED_RESULT)
+    iotawatt = Iotawatt("test", HOST, websession)
+    assert iotawatt.getMacAddress() == ""
+
+    assert await iotawatt.connect()
+
+    assert iotawatt.getMacAddress() == "deadbeef0001"
