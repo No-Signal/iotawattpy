@@ -6,6 +6,7 @@ Modified as part of the iotawattpy-nosignal fork
 
 from __future__ import annotations
 
+import asyncio
 import logging
 
 import httpx
@@ -28,18 +29,24 @@ class Connection:
         With a username, a single ``httpx.DigestAuth`` is shared by every
         request. It caches the last challenge, so only the first request pays
         for the extra 401 round trip.
+
+        Requests are serialised: the device firmware (ESP8266WebServer) serves
+        one connection at a time, so overlapping requests would queue on the
+        device or time out.
         """
         self._host = host
         self._websession = websession
         self._auth = (
             httpx.DigestAuth(username, password or "") if username is not None else None
         )
+        self._lock = asyncio.Lock()
 
     async def get(self, url: str) -> httpx.Response:
         """Perform a GET request, with digest auth if credentials are set."""
-        LOGGER.debug("URL: %s", url)
-        try:
-            return await self._websession.get(url, auth=self._auth)
-        except httpx.HTTPError:
-            LOGGER.debug("HTTP error while requesting %s", url, exc_info=True)
-            raise
+        async with self._lock:
+            LOGGER.debug("URL: %s", url)
+            try:
+                return await self._websession.get(url, auth=self._auth)
+            except httpx.HTTPError:
+                LOGGER.debug("HTTP error while requesting %s", url, exc_info=True)
+                raise

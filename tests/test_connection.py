@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import TYPE_CHECKING
 
 import httpx
@@ -83,3 +84,40 @@ async def test_no_auth_without_username(websession: httpx.AsyncClient) -> None:
     await connection.get(STATUS_URL)
 
     assert "Authorization" not in route.calls.last.request.headers
+
+
+@respx.mock
+async def test_requests_are_serialised(websession: httpx.AsyncClient) -> None:
+    """Concurrent requests on one connection never overlap on the device."""
+    active = 0
+    max_active = 0
+
+    async def status(_request: httpx.Request) -> httpx.Response:
+        nonlocal active, max_active
+        active += 1
+        max_active = max(max_active, active)
+        await asyncio.sleep(0.01)
+        active -= 1
+        return httpx.Response(200, json={})
+
+    route = respx.get(STATUS_URL).mock(side_effect=status)
+    connection = Connection(websession, HOST)
+
+    await asyncio.gather(*(connection.get(STATUS_URL) for _ in range(5)))
+
+    assert route.call_count == 5
+    assert max_active == 1
+
+
+@respx.mock
+async def test_lock_released_after_error(websession: httpx.AsyncClient) -> None:
+    """A failed request does not block later requests."""
+    route = respx.get(STATUS_URL)
+    route.side_effect = [httpx.ConnectError("boom"), httpx.Response(200, json={})]
+    connection = Connection(websession, HOST)
+
+    with pytest.raises(httpx.ConnectError):
+        await connection.get(STATUS_URL)
+    response = await asyncio.wait_for(connection.get(STATUS_URL), timeout=1)
+
+    assert response.status_code == 200
