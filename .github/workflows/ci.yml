@@ -111,7 +111,7 @@ jobs:
         run: |
           uv venv /tmp/install-test
           uv pip install --python /tmp/install-test/bin/python dist/*.whl
-          /tmp/install-test/bin/python -c "import iotawattpy; print(iotawattpy.__file__)"
+          /tmp/install-test/bin/python -c "import iotawattpy_nosignal; print(iotawattpy_nosignal.__file__)"
       - name: ⬆️ Upload build artifacts
         uses: actions/upload-artifact@v7
         with:

@@ -3,13 +3,16 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name        = "ha-iotawattpy"
+name        = "iotawattpy-nosignal"
 license     = {text = "GPL-3.0-or-later"}
 description = "Python library for the IoTaWatt Energy device"
 readme      = "README.md"
 authors     = [
     {name = "Greg Diehl", email = "greg.diehl.gtd@gmail.com"},
     {name = "Stefan Agner", email = "stefan@agner.ch"},
+]
+maintainers = [
+    {name = "Matt Holmes", email = "matt@holmes.world"},
 ]
 keywords    = ["iotawatt", "energy", "home-assistant"]
 classifiers = [
@@ -26,9 +29,8 @@ dependencies = [
 version = "0.3.0"
 
 [project.urls]
-"Homepage"    = "https://pypi.org/project/ha-iotawattpy"
-"Source Code" = "https://github.com/home-assistant-libs/iotawattpy"
-"Bug Reports" = "https://github.com/home-assistant-libs/iotawattpy/issues"
+"Source Code" = "https://github.com/No-Signal/iotawattpy"
+"Bug Reports" = "https://github.com/No-Signal/iotawattpy/issues"
 
 [dependency-groups]
 dev = [
@@ -43,11 +45,11 @@ dev = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["iotawattpy"]
+packages = ["iotawattpy_nosignal"]
 
 [tool.hatch.build.targets.sdist]
 include = [
-    "/iotawattpy",
+    "/iotawattpy_nosignal",
 ]
 
 [tool.coverage.report]
@@ -56,7 +58,7 @@ show_missing = true
 fail_under = 0
 
 [tool.coverage.run]
-source = ["iotawattpy"]
+source = ["iotawattpy_nosignal"]
 branch = true
 
 [tool.mypy]
@@ -110,7 +112,7 @@ select = ["ALL"]
 # The library exposes a stable camelCase API consumed by Home Assistant
 # (e.g. getName, setValue, integratedInterval). The naming rules are
 # disabled package-wide rather than per-method to keep the source clean.
-"iotawattpy/**" = [
+"iotawattpy_nosignal/**" = [
     "N802",   # Function name should be lowercase
     "N803",   # Argument name should be lowercase
     "N806",   # Variable in function should be lowercase
@@ -142,7 +144,7 @@ fixture-parentheses = false
 mark-parentheses = false
 
 [tool.ruff.lint.isort]
-known-first-party = ["iotawattpy"]
+known-first-party = ["iotawattpy_nosignal"]
 force-sort-within-sections = true
 split-on-trailing-comma = false
 combine-as-imports = true

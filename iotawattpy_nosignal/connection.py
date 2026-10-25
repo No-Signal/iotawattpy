@@ -1,4 +1,8 @@
-"""HTTP connection helper for the IoTaWatt device."""
+"""HTTP connection helper for the IoTaWatt device.
+
+Modified as part of the iotawattpy-nosignal fork
+(https://github.com/No-Signal/iotawattpy), see README.md.
+"""
 
 from __future__ import annotations
 

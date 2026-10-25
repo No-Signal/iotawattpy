@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from iotawattpy.sensor import Sensor
+from iotawattpy_nosignal.sensor import Sensor
 
 
 @pytest.fixture

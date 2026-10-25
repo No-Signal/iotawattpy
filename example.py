@@ -1,4 +1,8 @@
-"""Standalone CLI example for exercising the iotawattpy library."""
+"""Standalone CLI example for exercising the iotawattpy-nosignal library.
+
+Modified as part of the iotawattpy-nosignal fork
+(https://github.com/No-Signal/iotawattpy), see README.md.
+"""
 
 from __future__ import annotations
 
@@ -8,7 +12,7 @@ import logging
 
 import httpx
 
-from iotawattpy.iotawatt import Iotawatt
+from iotawattpy_nosignal.iotawatt import Iotawatt
 
 logging.basicConfig(level="DEBUG")
 LOGGER = logging.getLogger(__name__)

@@ -8,7 +8,7 @@ import httpx
 import pytest
 import respx
 
-from iotawattpy.iotawatt import Iotawatt
+from iotawattpy_nosignal.iotawatt import Iotawatt
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator

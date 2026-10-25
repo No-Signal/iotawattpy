@@ -1,1 +1,1 @@
-"""Tests for iotawattpy."""
+"""Tests for iotawattpy-nosignal."""

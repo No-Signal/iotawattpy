@@ -1,4 +1,8 @@
-"""High-level interface to an IoTaWatt energy monitoring device."""
+"""High-level interface to an IoTaWatt energy monitoring device.
+
+Modified as part of the iotawattpy-nosignal fork
+(https://github.com/No-Signal/iotawattpy), see README.md.
+"""
 
 from __future__ import annotations
 

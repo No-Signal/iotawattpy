@@ -1,4 +1,8 @@
-"""Representation of a single IoTaWatt sensor channel."""
+"""Representation of a single IoTaWatt sensor channel.
+
+Modified as part of the iotawattpy-nosignal fork
+(https://github.com/No-Signal/iotawattpy), see README.md.
+"""
 
 from __future__ import annotations
 
