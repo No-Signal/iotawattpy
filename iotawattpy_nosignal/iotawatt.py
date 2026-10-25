@@ -408,7 +408,10 @@ class Iotawatt:
             (now - lastUpdate).seconds,
         )
         if now == lastUpdate:
-            LOGGER.warning(
+            # Normal when polling at the 5s datalog resolution: scheduling
+            # jitter can land two updates in the same 5s slot. The current
+            # values above were already refreshed.
+            LOGGER.debug(
                 "Nothing to query, update() called too soon, must wait %ss", timespan
             )
             return

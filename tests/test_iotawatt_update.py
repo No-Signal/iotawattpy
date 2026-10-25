@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
+import logging
 from typing import TYPE_CHECKING, Any
 
+from freezegun import freeze_time
 import httpx
 import pytest
 import respx
@@ -348,3 +351,31 @@ async def test_live_status_keys_match_sensors(websession: httpx.AsyncClient) -> 
     assert set(readings) <= set(iotawatt.getSensors()["sensors"])
     assert readings["input_0"].watts == 123.0
     assert readings["output_reactive"].unit == "VARh"
+
+
+@respx.mock
+async def test_update_too_soon_is_not_a_warning(
+    websession: httpx.AsyncClient, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Two updates in the same 5s slot refresh current values quietly."""
+    current_result = [[100.0]]
+    integrated_queries = _mock_device(INTEGRATED_RESULT, current_result=current_result)
+    iotawatt = Iotawatt("test", HOST, websession, integratedInterval="d")
+
+    with freeze_time("2025-10-25 12:00:01+00:00") as frozen:
+        await iotawatt.update(timespan=5)
+        assert iotawatt.getLastUpdateTime() == datetime(2025, 10, 25, 12, 0, tzinfo=UTC)
+        queries_after_first = len(integrated_queries)
+
+        # Jitter: the next 5s poll fires early, still in the same 5s slot.
+        frozen.tick(timedelta(seconds=3.9))
+        current_result[0][0] = 200.0
+        with caplog.at_level(logging.DEBUG, logger="iotawattpy_nosignal"):
+            await iotawatt.update(timespan=5)
+
+    sensors = iotawatt.getSensors()["sensors"]
+    assert sensors["input_0"].getValue() == 200.0
+    # Only the daily total was queried again; the interval query was skipped.
+    assert len(integrated_queries) == queries_after_first + 1
+    assert "update() called too soon" in caplog.text
+    assert not [r for r in caplog.records if r.levelno >= logging.WARNING]
